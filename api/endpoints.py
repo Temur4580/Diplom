@@ -15,25 +15,23 @@ class APIEndpoints:
                      per_page: int = 60) -> Any:
         """Поиск книг по названию"""
         params = {
-            "customerCityId": test_data.CUSTOMER_CITY_ID,
             "products[page]": page,
             "products[per-page]": per_page,
             "phrase": phrase,
-            "abTestGroup": test_data.AB_TEST_GROUP
         }
-        return self.client.get(test_data.ENDPOINTS["search"], params=params)
+        return self.client.get("/search", params=params)
 
     @allure.step("Поиск книг по категории")
     def get_category(self, slug: str) -> Any:
         """Получение категории книг"""
         params = {"slug": slug}
-        return self.client.get(test_data.ENDPOINTS["categories"], params=params)
+        return self.client.get("/categories", params=params)
 
     @allure.step("Добавление книги в корзину")
     def add_to_cart(self, product_id: int) -> Any:
         """Добавление товара в корзину"""
         data = {"id": product_id}
-        return self.client.post(test_data.ENDPOINTS["cart"], json=data)
+        return self.client.post("/cart", json=data)
 
     @allure.step("Поиск с неправильным методом")
     def search_with_wrong_method(self, phrase: str) -> Any:

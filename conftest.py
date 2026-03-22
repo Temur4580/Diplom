@@ -1,11 +1,10 @@
 import pytest
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.firefox import GeckoDriverManager
-from config.settings import settings
-from api.client import APIClient
-from api.endpoints import APIEndpoints
+import chromedriver_autoinstaller
+import requests
 import allure
 
 
@@ -25,80 +24,63 @@ def pytest_addoption(parser):
     )
 
 
-@pytest.fixture(scope="session")
-def browser_name(request):
-    """Фикстура для получения имени браузера"""
-    return request.config.getoption("--browser")
-
-
-@pytest.fixture(scope="session")
-def headless_mode(request):
-    """Фикстура для получения режима headless"""
-    return request.config.getoption("--headless") or settings.HEADLESS
-
-
 @pytest.fixture(scope="function")
-def driver(browser_name, headless_mode):
-    """Фикстура для создания и закрытия WebDriver"""
-    driver = None
+def driver(request):
+    """Фикстура для создания WebDriver"""
+    # Автоматическая установка ChromeDriver
+    chromedriver_autoinstaller.install()
 
-    if browser_name.lower() == "chrome":
-        options = webdriver.ChromeOptions()
-        if headless_mode:
+    browser = request.config.getoption("--browser")
+    headless = request.config.getoption("--headless")
+
+    if browser.lower() == "chrome":
+        options = Options()
+        if headless:
             options.add_argument("--headless")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--window-size=1920,1080")
-        driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()),
-            options=options
-        )
-    elif browser_name.lower() == "firefox":
-        options = webdriver.FirefoxOptions()
-        if headless_mode:
-            options.add_argument("--headless")
-        driver = webdriver.Firefox(
-            service=Service(GeckoDriverManager().install()),
-            options=options
-        )
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+
+        # Используем chromedriver_autoinstaller
+        driver = webdriver.Chrome(options=options)
+        driver.implicitly_wait(10)
+        driver.maximize_window()
+
+        yield driver
+        driver.quit()
     else:
-        raise ValueError(f"Browser {browser_name} is not supported")
-
-    driver.implicitly_wait(settings.IMPLICIT_WAIT)
-    driver.maximize_window()
-
-    yield driver
-
-    driver.quit()
+        pytest.skip(f"Browser {browser} not supported")
 
 
 @pytest.fixture(scope="function")
 def api_client():
     """Фикстура для API клиента"""
-    # Используем токен из настроек
-    token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL3VzZXItcmlnaHQiLCJzdWIiOjIzNTMwNTUzLCJpYXQiOjE3NjU3MzcxOTMsImV4cCI6MTc2NTc0MDc5MywidHlwZSI6MjAsImp0aSI6IjAxOWIxZTIzLTVmNDMtN2RmOS1hYWQ1LTUwOGEyZGMwNGYzOSIsInJvbGVzIjoxMH0.FtUCFn0LUBiHRQzlw5iheZ6xaSLhsgHQq4e-9gnDDFg"
-    client = APIClient(token=token)
-    return APIEndpoints(client)
+
+    class SimpleAPIClient:
+        def __init__(self):
+            self.base_url = "https://www.chitai-gorod.ru"
+            self.session = requests.Session()
+            self.session.headers.update({
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "ru-RU,ru;q=0.9,en;q=0.8"
+            })
+
+        def get(self, endpoint, params=None):
+            """GET запрос"""
+            url = f"{self.base_url}{endpoint}"
+            return self.session.get(url, params=params, timeout=10)
+
+        def post(self, endpoint, json=None, params=None):
+            """POST запрос"""
+            url = f"{self.base_url}{endpoint}"
+            if params:
+                return self.session.post(url, params=params, json=json, timeout=10)
+            return self.session.post(url, json=json, timeout=10)
+
+    return SimpleAPIClient()
 
 
-@pytest.fixture(scope="function")
-def api_client_unauthorized():
-    """Фикстура для API клиента без авторизации"""
-    client = APIClient()
-    return APIEndpoints(client)
 
-
-def pytest_configure(config):
-    """Конфигурация pytest"""
-    config.addinivalue_line(
-        "markers", "ui: mark test as UI test"
-    )
-    config.addinivalue_line(
-        "markers", "api: mark test as API test"
-    )
-    config.addinivalue_line(
-        "markers", "smoke: mark test as smoke test"
-    )
-    config.addinivalue_line(
-        "markers", "regression: mark test as regression test"
-    )

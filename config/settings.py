@@ -5,7 +5,7 @@ from pathlib import Path
 class Settings:
     # Base URLs
     BASE_URL = "https://www.chitai-gorod.ru"
-    API_BASE_URL = "https://web-agr.chitai-gorod.ru"
+    API_BASE_URL = "https://www.chitai-gorod.ru"
 
     # Timeouts
     IMPLICIT_WAIT = 10
@@ -13,8 +13,8 @@ class Settings:
     PAGE_LOAD_TIMEOUT = 30
 
     # Browser settings
-    HEADLESS = os.getenv("HEADLESS", "false").lower() == "true"
-    BROWSER = os.getenv("BROWSER", "chrome")
+    HEADLESS = False
+    BROWSER = "chrome"
 
     # Paths
     ROOT_DIR = Path(__file__).parent.parent
