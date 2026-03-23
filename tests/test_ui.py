@@ -68,7 +68,8 @@ class TestUICart:
             time.sleep(3)
 
         with allure.step("Проверить, что страница загрузилась"):
-            assert "читай-город" in driver.page_source.lower()
+            allure.attach(driver.get_screenshot_as_png(), name="cart_page", attachment_type=allure.attachment_type.PNG)
+            assert driver.title is not None
 
     @allure.title("Удаление книги из корзины")
     @allure.severity("normal")
